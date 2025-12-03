@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle par Gestes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 800px;
+            min-height: 600px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+        }
+        h1 {
+            color: white;
+            font-size: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .video-section {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #videoElement {
+            display: none;
+        }
+        #canvasElement {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .cursor-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #0f0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+        .btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .status {
+            text-align: center;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .shortcuts {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .shortcuts h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .shortcut-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .shortcut-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .shortcut-item.active {
+            background: #d4edda;
+            border-left-color: #28a745;
+            box-shadow: 0 2px 5px rgba(40, 167, 69, 0.3);
+        }
+        .gesture {
+            font-weight: bold;
+            color: #764ba2;
+            font-size: 11px;
+        }
+        .action {
+            color: #495057;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🖐️ Contrôle par Gestes de Main</h1>
+    
+    <div class="video-section">
+        <div class="video-container">
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="canvasElement"></canvas>
+            <div class="cursor-indicator" id="cursorInfo">Inactif</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="btn" id="startBtn">▶️ Démarrer</button>
+        <button class="btn" id="mouseBtn">🖱️ Activer Souris</button>
+        <button class="btn" id="shortcutsBtn">⌨️ Activer Raccourcis</button>
+        <div class="status" id="status">Prêt</div>
+    </div>
+    
+    <div class="shortcuts">
+        <h3>🎯 Raccourcis Disponibles</h3>
+        <div class="shortcut-grid">
+            <div>
+                <strong style="color: #667eea; font-size: 13px;">Main Droite</strong>
+                <div class="shortcut-item" id="r-index">
+                    <div class="gesture">👍+👆 Index</div>
+                    <div class="action">Copier (Ctrl+C)</div>
+                </div>
+                <div class="shortcut-item" id="r-middle">
+                    <div class="gesture">👍+🖕 Majeur</div>
+                    <div class="action">Coller (Ctrl+V)</div>
+                </div>
+                <div class="shortcut-item" id="r-ring">
+                    <div class="gesture">👍+💍 Annulaire</div>
+                    <div class="action">Sauvegarder (Ctrl+S)</div>
+                </div>
+                <div class="shortcut-item" id="r-pinky">
+                    <div class="gesture">👍+🤙 Auriculaire</div>
+                    <div class="action">Rechercher (Ctrl+F)</div>
+                </div>
+                <div class="shortcut-item" id="r-fist">
+                    <div class="gesture">✊ Poing</div>
+                    <div class="action">Actualiser (F5)</div>
+                </div>
+            </div>
+            <div>
+                <strong style="color: #667eea; font-size: 13px;">Main Gauche</strong>
+                <div class="shortcut-item" id="l-index">
+                    <div class="gesture">👍+👆 Index</div>
+                    <div class="action">Annuler (Ctrl+Z)</div>
+                </div>
+                <div class="shortcut-item" id="l-middle">
+                    <div class="gesture">👍+🖕 Majeur</div>
+                    <div class="action">Refaire (Ctrl+Y)</div>
+                </div>
+                <div class="shortcut-item" id="l-ring">
+                    <div class="gesture">👍+💍 Annulaire</div>
+                    <div class="action">Nouvel Onglet (Ctrl+T)</div>
+                </div>
+                <div class="shortcut-item" id="l-pinky">
+                    <div class="gesture">👍+🤙 Auriculaire</div>
+                    <div class="action">Fermer (Ctrl+W)</div>
+                </div>
+                <div class="shortcut-item" id="l-fist">
+                    <div class="gesture">✊ Poing</div>
+                    <div class="action">Zoom + (Ctrl++)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
